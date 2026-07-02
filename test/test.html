@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Banco de pruebas · PDF Grabber</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; background: #0f1216; color: #e8ebef; }
+      header { padding: 20px 24px; background: #1c2026; border-bottom: 1px solid #2c323b; }
+      h1 { margin: 0 0 4px; font-size: 20px; }
+      header p { margin: 0; color: #9aa4b0; font-size: 13px; }
+      main { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 20px 24px; }
+      .card { background: #1c2026; border: 1px solid #2c323b; border-radius: 12px; padding: 14px; }
+      .card h2 { margin: 0 0 6px; font-size: 14px; }
+      .card p { margin: 0 0 10px; color: #9aa4b0; font-size: 12px; }
+      iframe, embed, object { width: 100%; height: 190px; border: 1px solid #2c323b; border-radius: 8px; background: #fff; }
+      button { font: inherit; font-weight: 600; padding: 8px 12px; border: none; border-radius: 8px; background: #e4572e; color: #fff; cursor: pointer; }
+      button:hover { filter: brightness(1.08); }
+      a.link { color: #6ea0ff; }
+      .display { margin-top: 10px; }
+      code { background: #232830; padding: 1px 5px; border-radius: 5px; font-size: 11px; }
+      .note { grid-column: 1 / -1; color: #9aa4b0; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Banco de pruebas · PDF Grabber</h1>
+      <p>Cada tarjeta ejercita una forma de carga distinta. Abre el popup de la extensión y verifica que se detecta y se descarga.</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>1 · iframe</h2>
+        <p>PDF incrustado con <code>&lt;iframe src="sample.pdf"&gt;</code></p>
+        <iframe src="sample.pdf" title="iframe"></iframe>
+      </section>
+
+      <section class="card">
+        <h2>2 · object</h2>
+        <p><code>&lt;object type="application/pdf"&gt;</code></p>
+        <object data="sample.pdf" type="application/pdf"></object>
+      </section>
+
+      <section class="card">
+        <h2>3 · embed</h2>
+        <p><code>&lt;embed type="application/pdf"&gt;</code></p>
+        <embed src="sample.pdf" type="application/pdf" />
+      </section>
+
+      <section class="card">
+        <h2>4 · Enlace directo</h2>
+        <p>Enlace <code>.pdf</code> (prueba también clic derecho → Descargar PDF).</p>
+        <p><a class="link" href="sample.pdf">Abrir sample.pdf</a></p>
+      </section>
+
+      <section class="card">
+        <h2>5 · fetch → Blob</h2>
+        <p>Descarga por <code>fetch</code>, crea un Blob y lo muestra. Intercepta <em>fetch</em> y <em>createObjectURL</em>.</p>
+        <button data-mode="fetch">Cargar por fetch</button>
+        <div class="display" data-slot="fetch"></div>
+      </section>
+
+      <section class="card">
+        <h2>6 · XMLHttpRequest → Blob</h2>
+        <p>Descarga por <code>XHR</code> con <code>responseType=blob</code>.</p>
+        <button data-mode="xhr">Cargar por XHR</button>
+        <div class="display" data-slot="xhr"></div>
+      </section>
+
+      <section class="card">
+        <h2>7 · data: URL</h2>
+        <p>PDF como <code>data:application/pdf;base64,…</code></p>
+        <button data-mode="data">Cargar como data URL</button>
+        <div class="display" data-slot="data"></div>
+      </section>
+
+      <section class="card">
+        <h2>8 · Content-Disposition</h2>
+        <p>El servidor envía <code>filename</code> en la cabecera. El nombre sugerido debería ser <code>informe-desde-cabecera.pdf</code>.</p>
+        <p><a class="link" href="sample.pdf?cd=1">Abrir con Content-Disposition</a></p>
+      </section>
+
+      <p class="note">
+        Consejo: abre la consola del navegador y activa el “Registro detallado” en los Ajustes de la extensión
+        para ver las trazas del interceptor y del descargador.
+      </p>
+    </main>
+
+    <script>
+      const PDF_URL = 'sample.pdf';
+
+      function showInIframe(slot, url) {
+        const host = document.querySelector(`[data-slot="${slot}"]`);
+        host.innerHTML = '';
+        const f = document.createElement('iframe');
+        f.src = url;
+        host.appendChild(f);
+      }
+
+      async function loadFetch() {
+        const res = await fetch(PDF_URL);
+        const blob = await res.blob();
+        showInIframe('fetch', URL.createObjectURL(blob));
+      }
+
+      function loadXhr() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', PDF_URL);
+        xhr.responseType = 'blob';
+        xhr.onload = () => showInIframe('xhr', URL.createObjectURL(xhr.response));
+        xhr.send();
+      }
+
+      async function loadData() {
+        const res = await fetch(PDF_URL);
+        const buf = new Uint8Array(await res.arrayBuffer());
+        let bin = '';
+        for (let i = 0; i < buf.length; i += 0x8000) {
+          bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+        }
+        showInIframe('data', `data:application/pdf;base64,${btoa(bin)}`);
+      }
+
+      document.querySelectorAll('button[data-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mode = btn.dataset.mode;
+          if (mode === 'fetch') loadFetch();
+          else if (mode === 'xhr') loadXhr();
+          else if (mode === 'data') loadData();
+        });
+      });
+    </script>
+  </body>
+</html>
