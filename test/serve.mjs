@@ -11,7 +11,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { extname } from 'node:path';
+import { extname, join, normalize } from 'node:path';
 
 const dir = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.argv[2]) || 8080;
@@ -27,13 +27,14 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://localhost:${port}`);
     let path = decodeURIComponent(url.pathname);
-    if (path === '/' ) path = '/test.html';
-    if (path.includes('..')) {
+    if (path === '/') path = '/test.html';
+
+    // Resuelve dentro de dir/ y bloquea escapes con ../
+    const file = normalize(join(dir, path));
+    if (!file.startsWith(normalize(dir))) {
       res.writeHead(403).end('Forbidden');
       return;
     }
-
-    const file = fileURLToPath(new URL(`.${path}`, `file://${dir.replace(/\\/g, '/')}/`));
     const data = await readFile(file);
     const type = MIME[extname(path).toLowerCase()] || 'application/octet-stream';
 

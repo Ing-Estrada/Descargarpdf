@@ -231,7 +231,7 @@ function install(): void {
     const entry = held.get(blobUrl);
     const source = entry?.blob
       ? Promise.resolve(entry.blob)
-      : fetch(blobUrl).then((r) => r.blob()); // blob del propio origen
+      : fetch(blobUrl, { credentials: 'include' }).then((r) => r.blob()); // mismo origen: envía cookies/Referer
 
     source
       .then((blob) => blob.arrayBuffer())

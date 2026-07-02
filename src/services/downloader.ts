@@ -133,9 +133,13 @@ async function downloadDirect(
 /**
  * Orquesta la descarga de una fuente según su esquema:
  *  - data:  → decodifica en el worker → offscreen.
- *  - blob:  → pide los bytes al content script (mismo origen) → offscreen.
- *  - http:  → intenta fetch+validación en el worker → offscreen;
- *             si es muy grande o falla, cae a descarga directa.
+ *  - Prioridad: bytes que el navegador YA cargó (interceptor / blob del
+ *    documento). Es la vía más fiable porque respeta la sesión, las cookies y
+ *    el Referer del visor, que el service worker no puede reproducir.
+ *  - data:  → se decodifica sin red.
+ *  - http:  → fetch+validación en el worker (envía cookies con credentials);
+ *             si el worker recibe algo que no es PDF (p. ej. HTML por falta de
+ *             sesión/Referer), reintenta a través del documento.
  */
 export async function downloadSource(
   source: PdfSource,
@@ -146,49 +150,94 @@ export async function downloadSource(
   diag.info('start', `Fuente ${source.method} (${source.scheme}) → ${source.url.slice(0, 140)}`);
 
   try {
-    // --- blob: sólo el content script del origen puede leerlo ---
-    if (source.scheme === 'blob') {
-      if (tabId == null) throw new Error('No hay pestaña asociada para resolver el blob.');
-      diag.info('blob', 'Solicitando bytes al content script del documento…');
-      const res = await sendToTab(tabId, { type: 'content:resolve-bytes', source }, source.frameId);
-      for (const e of res.diagnostics) diag[e.level](e.stage, e.message);
-      if (!res.payload) {
-        throw new Error(res.error || 'El content script no pudo leer el blob.');
+    // --- 1) Bytes ya presentes en el navegador (interceptor o blob) ---
+    const documentHasBytes = tabId != null && (Boolean(source.interceptorBlobUrl) || source.scheme === 'blob');
+    if (documentHasBytes) {
+      try {
+        return await downloadFromDocument(source, tabId!, settings, diag);
+      } catch (err) {
+        const m = err instanceof Error ? err.message : String(err);
+        if (source.scheme !== 'http') throw err; // blob puro: no hay otra vía
+        diag.warn('resolve', `No se pudo obtener por el documento (${m}); se intenta por red…`);
       }
-      const filename = finalName(source, res.payload, settings);
-      return await downloadFromBytes(res.payload, filename, settings.askWhereToSave, diag);
     }
 
-    // --- data: se decodifica sin red ---
+    // --- 2) data: se decodifica sin red ---
     if (source.scheme === 'data') {
-      const payload = await fetchUrlToPayload(source.url, diag); // maneja data: internamente
+      const payload = await fetchUrlToPayload(source.url, diag);
       const filename = finalName(source, payload, settings);
       return await downloadFromBytes(payload, filename, settings.askWhereToSave, diag);
     }
 
-    // --- http(s) ---
+    // --- 3) http(s) desde el worker (con cookies) ---
     diag.info('http', 'Comprobando cabeceras…');
-    const res = await fetch(source.url, { credentials: 'include' });
-    if (!res.ok) throw new Error(`El servidor respondió ${res.status} ${res.statusText}`);
+    let res: Response;
+    try {
+      res = await fetch(source.url, { credentials: 'include' });
+    } catch (netErr) {
+      if (tabId != null) {
+        diag.warn('http', 'Fetch del worker falló; se intenta por el documento…');
+        return await downloadFromDocument(source, tabId, settings, diag);
+      }
+      throw netErr;
+    }
+
+    if (!res.ok) {
+      if (tabId != null) {
+        diag.warn('http', `El servidor respondió ${res.status}; se intenta por el documento…`);
+        return await downloadFromDocument(source, tabId, settings, diag);
+      }
+      throw new Error(`El servidor respondió ${res.status} ${res.statusText}`);
+    }
 
     const length = Number(res.headers.get('content-length') || 0);
     if (length > DIRECT_DOWNLOAD_THRESHOLD) {
-      // Demasiado grande para pasar por memoria; deja que el navegador lo baje.
       await res.body?.cancel();
       diag.warn('http', `Archivo grande (${length} bytes): se usa descarga directa.`);
       const filename = finalName(source, undefined, settings);
       return await downloadDirect(source.url, filename, settings.askWhereToSave, diag);
     }
 
-    // Reutiliza la misma respuesta para validar firma y extraer nombre.
-    const payload = await responseToPayload(res, source.url, diag);
-    const filename = finalName(source, payload, settings);
-    return await downloadFromBytes(payload, filename, settings.askWhereToSave, diag);
+    try {
+      const payload = await responseToPayload(res, source.url, diag);
+      const filename = finalName(source, payload, settings);
+      return await downloadFromBytes(payload, filename, settings.askWhereToSave, diag);
+    } catch (validationErr) {
+      // El worker recibió algo que no es PDF (sesión/Referer requeridos por el
+      // servidor). El documento SÍ tiene esa sesión: reintenta por ahí.
+      if (tabId != null) {
+        const m = validationErr instanceof Error ? validationErr.message : String(validationErr);
+        diag.warn('http', `Respuesta no-PDF en el worker (${m}); se intenta por el documento…`);
+        return await downloadFromDocument(source, tabId, settings, diag);
+      }
+      throw validationErr;
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     diag.error('download', message);
     return { ok: false, error: message, diagnostics: diag.snapshot() };
   }
+}
+
+/**
+ * Obtiene los bytes a través del content script del documento, que comparte
+ * el origen, las cookies y el Referer del visor. Sirve tanto para blobs
+ * interceptados como para URLs http que exigen sesión.
+ */
+async function downloadFromDocument(
+  source: PdfSource,
+  tabId: number,
+  settings: Settings,
+  diag: Diagnostics,
+): Promise<DownloadResult> {
+  diag.info('doc', 'Solicitando bytes al documento (content script)…');
+  const res = await sendToTab(tabId, { type: 'content:resolve-bytes', source }, source.frameId);
+  for (const e of res.diagnostics) diag[e.level](e.stage, e.message);
+  if (!res.payload) {
+    throw new Error(res.error || 'El documento no pudo entregar los bytes del PDF.');
+  }
+  const filename = finalName(source, res.payload, settings);
+  return await downloadFromBytes(res.payload, filename, settings.askWhereToSave, diag);
 }
 
 function finalName(source: PdfSource, payload: PdfPayload | undefined, settings: Settings): string {

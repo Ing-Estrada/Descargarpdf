@@ -16,11 +16,11 @@ import {
   type RuntimeMessage,
 } from '@/types';
 import { scanDom, detectSelfAsPdf } from '@/services/detection';
-import { dataUrlToPayload } from '@/services/fetcher';
+import { dataUrlToPayload, looksLikePdfBytes } from '@/services/fetcher';
 import { Diagnostics } from '@/utils/logger';
 import { sendRuntime, uid, waitForBridge } from '@/utils/messaging';
 import { nameFromUrl, sanitizeFilename } from '@/utils/filename';
-import { arrayBufferToBase64 } from '@/utils/base64';
+import { arrayBufferToBase64, base64ToUint8Array } from '@/utils/base64';
 
 const seen = new Set<string>();
 
@@ -98,20 +98,34 @@ async function resolveBlobBytes(source: PdfSource, diag: Diagnostics): Promise<P
   try {
     const result = await pending;
     if (result.base64) {
-      diag.info('bridge', `Bytes recibidos del interceptor (${result.size ?? 0} b)`);
-      return toPayload(source, result.base64, result.mimeType || 'application/pdf', result.size ?? 0);
+      // El interceptor no siempre conoce el content-type real (p. ej. al
+      // refetchear una URL), así que validamos la firma %PDF- por prefijo.
+      const prefix = base64ToUint8Array(result.base64.slice(0, 64));
+      if (!looksLikePdfBytes(prefix)) {
+        throw new Error('Los bytes no son un PDF (posible sesión/Referer requeridos o contenido protegido).');
+      }
+      diag.info('bridge', `Bytes recibidos del documento (${result.size ?? 0} b)`);
+      return toPayload(source, result.base64, 'application/pdf', result.size ?? 0);
     }
     if (result.error) diag.warn('bridge', `Interceptor: ${result.error}`);
   } catch (e) {
     diag.warn('bridge', e instanceof Error ? e.message : String(e));
   }
 
-  // 2) Fallback: fetch directo del blob desde el mismo origen.
-  diag.info('blob', 'Leyendo el blob por fetch en el contexto de la página…');
-  const res = await fetch(blobUrl);
-  if (!res.ok) throw new Error(`No se pudo leer el blob (${res.status}).`);
+  // 2) Fallback: fetch en el contexto de la página (comparte cookies y Referer).
+  diag.info('fetch', 'Leyendo el recurso por fetch en el contexto de la página…');
+  const res = await fetch(blobUrl, { credentials: 'include' });
+  if (!res.ok) throw new Error(`No se pudo leer el recurso (${res.status}).`);
   const buf = await res.arrayBuffer();
-  return toPayload(source, arrayBufferToBase64(buf), res.headers.get('content-type') || 'application/pdf', buf.byteLength);
+  const bytes = new Uint8Array(buf);
+  const ct = res.headers.get('content-type') || '';
+  if (!/application\/(x-)?pdf/i.test(ct) && !looksLikePdfBytes(bytes)) {
+    throw new Error(
+      'El recurso obtenido no es un PDF. El servidor pudo exigir sesión/Referer, ' +
+        'o el documento está protegido y no llega completo al navegador.',
+    );
+  }
+  return toPayload(source, arrayBufferToBase64(buf), 'application/pdf', buf.byteLength);
 }
 
 function toPayload(source: PdfSource, base64: string, mimeType: string, size: number): PdfPayload {
