@@ -140,14 +140,12 @@ La carpeta a cargar siempre es **`dist/`** (no la raíz del proyecto).
 
 | Permiso | Uso |
 |---------|-----|
-| `activeTab` | Interactuar con la pestaña activa al abrir el popup. |
 | `downloads` | Guardar el PDF mediante el gestor de descargas del navegador. |
 | `storage` | Guardar tus preferencias (tema, patrón de nombre, etc.). |
-| `scripting` | Refrescar la detección en la pestaña. |
-| `tabs` | Conocer la URL/título de la pestaña activa. |
+| `tabs` | Conocer la URL/título de la pestaña activa para detectar el PDF y sugerir el nombre. |
 | `contextMenus` | Añadir la opción "Descargar PDF" al clic derecho. |
 | `offscreen` | Crear object URLs desde el service worker (que no tiene DOM). |
-| `host_permissions: <all_urls>` | Leer los bytes de PDFs `http(s)` ya accesibles, sin bloqueos CORS artificiales. |
+| `host_permissions: <all_urls>` | Detectar y leer los bytes de PDFs ya accesibles en cualquier sitio, sin bloqueos CORS artificiales. |
 
 No se usan servidores externos. No se envía ninguna información. Todo ocurre localmente.
 

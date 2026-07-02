@@ -69,15 +69,15 @@ Español
 
 | Permiso | Justificación para pegar |
 |---------|--------------------------|
-| `activeTab` | Interactuar con la pestaña activa cuando el usuario abre el popup para detectar y descargar el PDF que está viendo. |
-| `tabs` | Leer la URL y el título de la pestaña activa para detectar PDFs y sugerir el nombre del archivo. |
-| `scripting` | Refrescar la detección de PDFs en la página a petición del usuario. |
 | `downloads` | Guardar el PDF en el equipo del usuario mediante el gestor de descargas del navegador. |
 | `storage` | Guardar las preferencias del usuario (tema, patrón de nombre, ajustes). |
+| `tabs` | Leer la URL y el título de la pestaña activa para detectar PDFs y sugerir el nombre del archivo. |
 | `contextMenus` | Añadir la opción "Descargar PDF" al menú del clic derecho. |
 | `offscreen` | Crear object URLs a partir de los bytes del PDF; el service worker de MV3 no dispone de esa API del DOM. |
 | **Host permissions** (`<all_urls>`) | Un PDF puede estar servido desde cualquier dominio; se necesita acceso amplio para detectar y obtener el documento que el usuario visualiza. No se transmite ningún dato fuera del navegador. |
 | **Uso de código remoto** | Ninguno. Todo el código se incluye en el paquete; no se descarga ni se ejecuta código remoto. |
+
+> Nota: la extensión NO usa `activeTab` ni `scripting` (se eliminaron del manifest por no ser necesarios), así que esos campos no deben aparecer en el formulario.
 
 ## Declaración de uso de datos (Chrome "Data safety")
 - ¿Recopila datos de usuario? **No.**

@@ -27,10 +27,8 @@
     "open_in_tab": true
   },
   "permissions": [
-    "activeTab",
     "downloads",
     "storage",
-    "scripting",
     "tabs",
     "contextMenus",
     "offscreen"
