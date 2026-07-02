@@ -26,7 +26,9 @@ chrome.runtime.onMessage.addListener((message: OffscreenMsg, _sender, sendRespon
   if (message.type === 'offscreen:create-object-url') {
     try {
       const bytes = base64ToUint8Array(message.base64);
-      const blob = new Blob([bytes], { type: message.mimeType || 'application/pdf' });
+      const blob = new Blob([bytes as unknown as BlobPart], {
+        type: message.mimeType || 'application/pdf',
+      });
       const objectUrl = URL.createObjectURL(blob);
       sendResponse({ objectUrl });
     } catch (err) {

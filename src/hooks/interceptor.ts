@@ -103,6 +103,7 @@ function install(): void {
   const contentTypeIsPdf = (ct: string | null): boolean => !!ct && /application\/(x-)?pdf/i.test(ct);
 
   /* ------------------------------ fetch ------------------------------ */
+  try {
   const originalFetch = window.fetch;
   if (typeof originalFetch === 'function') {
     window.fetch = function patchedFetch(this: unknown, ...fetchArgs: Parameters<typeof fetch>) {
@@ -136,8 +137,12 @@ function install(): void {
       return promise;
     } as typeof fetch;
   }
+  } catch {
+    /* fetch no instrumentable (congelado): se continúa con el resto */
+  }
 
   /* --------------------------- XMLHttpRequest -------------------------- */
+  try {
   const XHR = XMLHttpRequest.prototype;
   const originalOpen = XHR.open;
   const originalSend = XHR.send;
@@ -186,8 +191,12 @@ function install(): void {
     // @ts-expect-error passthrough variádico hacia la firma original
     return originalSend.apply(this, sendArgs);
   } as typeof XHR.send;
+  } catch {
+    /* XHR no instrumentable: se continúa con el resto */
+  }
 
   /* ----------------------- URL.createObjectURL ----------------------- */
+  try {
   const originalCreate = URL.createObjectURL.bind(URL);
   URL.createObjectURL = function createObjectURL(obj: Blob | MediaSource): string {
     const objectUrl = originalCreate(obj as Blob);
@@ -202,6 +211,9 @@ function install(): void {
     }
     return objectUrl;
   } as typeof URL.createObjectURL;
+  } catch {
+    /* createObjectURL no instrumentable: se continúa con el resto */
+  }
 
   /* ------------------------ PDF.js (visor) --------------------------- */
   detectPdfJs(report);
