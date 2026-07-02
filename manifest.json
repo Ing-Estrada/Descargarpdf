@@ -3,7 +3,6 @@
   "name": "PDF Grabber",
   "version": "1.0.0",
   "description": "Descarga documentos PDF que el navegador ya recibió y puede visualizar, aunque la página no ofrezca botón de descarga.",
-  "default_locale": "es",
   "minimum_chrome_version": "111",
   "icons": {
     "16": "icons/icon16.png",

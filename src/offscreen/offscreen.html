@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PDF Grabber — offscreen</title>
+  </head>
+  <body>
+    <!--
+      Documento oculto sin interfaz. Su única función es disponer de las APIs
+      del DOM (URL.createObjectURL) que el service worker no tiene, para
+      convertir bytes de PDF en object URLs descargables.
+    -->
+    <script type="module" src="./offscreen.ts"></script>
+  </body>
+</html>

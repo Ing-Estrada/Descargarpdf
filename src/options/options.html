@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Grabber — Ajustes</title>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="head">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/></svg>
+        </span>
+        <div>
+          <h1>PDF Grabber</h1>
+          <p class="sub">Ajustes de la extensión</p>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>Apariencia</h2>
+        <div class="field">
+          <label for="theme">Tema</label>
+          <select id="theme">
+            <option value="auto">Automático (según el sistema)</option>
+            <option value="light">Claro</option>
+            <option value="dark">Oscuro</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Descargas</h2>
+        <div class="field">
+          <label for="pattern">Patrón de nombre</label>
+          <input id="pattern" type="text" spellcheck="false" placeholder="{name}" />
+          <p class="hint">
+            Tokens: <code>{name}</code> <code>{title}</code> <code>{host}</code>
+            <code>{date}</code> <code>{time}</code>. Ejemplo:
+            <code>{host}-{name}-{date}</code>. La extensión <code>.pdf</code> se añade sola.
+          </p>
+          <p class="preview">Vista previa: <span id="patternPreview">documento.pdf</span></p>
+        </div>
+        <div class="field field--switch">
+          <div>
+            <label for="askWhere">Preguntar dónde guardar</label>
+            <p class="hint">Muestra el diálogo "Guardar como" en cada descarga.</p>
+          </div>
+          <input id="askWhere" type="checkbox" class="switch" />
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Detección y diagnóstico</h2>
+        <div class="field field--switch">
+          <div>
+            <label for="keepBlobs">Retener blobs interceptados</label>
+            <p class="hint">Mantiene en memoria los PDFs vistos por fetch/XHR para poder recuperarlos aunque la página los descarte. Usa algo de memoria.</p>
+          </div>
+          <input id="keepBlobs" type="checkbox" class="switch" />
+        </div>
+        <div class="field field--switch">
+          <div>
+            <label for="showDiag">Abrir el panel de diagnóstico automáticamente</label>
+            <p class="hint">Despliega los detalles técnicos tras cada descarga.</p>
+          </div>
+          <input id="showDiag" type="checkbox" class="switch" />
+        </div>
+        <div class="field field--switch">
+          <div>
+            <label for="verbose">Registro detallado en consola</label>
+            <p class="hint">Escribe trazas en la consola de cada contexto (para depurar).</p>
+          </div>
+          <input id="verbose" type="checkbox" class="switch" />
+        </div>
+      </section>
+
+      <section class="card card--info">
+        <h2>Alcance y límites</h2>
+        <p>
+          Esta extensión sólo recupera PDFs que el navegador <strong>ya recibió</strong> y puede
+          visualizar legítimamente. No rompe autenticación, sesiones, DRM, cifrado ni
+          protecciones del servidor.
+        </p>
+        <p>
+          Si un documento está protegido por DRM o nunca llega completo al navegador (por
+          ejemplo, se renderiza página a página bajo demanda con protección), no es
+          técnicamente recuperable mediante las APIs permitidas a una extensión.
+        </p>
+      </section>
+
+      <footer class="foot">
+        <span id="savedNote" class="saved" hidden>Guardado ✓</span>
+        <button id="reset" class="btn btn--ghost">Restablecer valores</button>
+        <span class="ver" id="ver"></span>
+      </footer>
+    </main>
+
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>
