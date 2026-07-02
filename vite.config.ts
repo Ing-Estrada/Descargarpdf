@@ -55,7 +55,8 @@ export default defineConfig(({ mode }) => {
     ...shared,
     build: {
       outDir: 'dist',
-      emptyOutDir: true,
+      // En modo watch no vaciamos dist para no borrar los bundles IIFE de los otros pases.
+      emptyOutDir: !process.env.PDFGRABBER_WATCH,
       target: 'es2022',
       sourcemap: false,
       minify: false as const,
